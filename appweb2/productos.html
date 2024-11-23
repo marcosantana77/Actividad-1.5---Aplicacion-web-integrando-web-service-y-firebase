@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gestión de Productos</title>
+  <link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body {
+      background-color: #121212; /* Fondo oscuro */
+      color: #ffffff; /* Texto claro */
+      font-family: 'Arial', sans-serif;
+    }
+    .container {
+      background-color: #1e1e1e; /* Fondo del contenedor */
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+    }
+    h1, h2 {
+      color: #ffffff;
+    }
+    .card {
+      background-color: #2a2a2a; /* Fondo de las tarjetas */
+      border: none;
+      border-radius: 10px;
+    }
+    .form-control {
+      background-color: #2b2b2b;
+      color: #ffffff;
+      border: 1px solid #444;
+    }
+    .form-control:focus {
+      background-color: #333;
+      border-color: #007bff;
+      color: #ffffff;
+      box-shadow: none;
+    }
+    .btn-primary, .btn-success, .btn-secondary, .btn-danger {
+      border: none;
+      border-radius: 5px;
+      color: #ffffff;
+    }
+    .btn-primary {
+      background-color: #007bff;
+    }
+    .btn-primary:hover {
+      background-color: #0056b3;
+    }
+    .btn-success {
+      background-color: #28a745;
+    }
+    .btn-success:hover {
+      background-color: #1e7e34;
+    }
+    .btn-secondary {
+      background-color: #6c757d;
+    }
+    .btn-secondary:hover {
+      background-color: #5a6268;
+    }
+    .btn-danger {
+      background-color: #dc3545;
+    }
+    .btn-danger:hover {
+      background-color: #bd2130;
+    }
+    .list-group-item {
+      background-color: #2a2a2a;
+      color: #ffffff;
+      border: 1px solid #444;
+    }
+    .list-group-item .btn {
+      margin-left: 10px;
+    }
+    .d-flex button {
+      margin-left: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container my-5">
+    <div class="d-flex justify-content-between mb-4">
+      <h1>Gestión de Productos</h1>
+      <button class="btn btn-secondary" onclick="cerrarSesion()">Cerrar Sesión</button>
+    </div>
+
+    <!-- Formulario para Agregar/Editar Producto -->
+    <div class="card mb-4" id="agregarProductoForm">
+      <div class="card-body">
+        <h2 class="card-title" id="formTitle">Agregar Producto</h2>
+        <div class="form-group">
+          <input type="number" id="precio" class="form-control" placeholder="Precio">
+        </div>
+        <div class="form-group">
+          <input type="number" id="cantidad" class="form-control" placeholder="Cantidad">
+        </div>
+        <div class="form-group">
+          <input type="text" id="descripcion" class="form-control" placeholder="Descripción">
+        </div>
+        <button class="btn btn-success" onclick="guardarProducto()">Guardar Producto</button>
+        <button class="btn btn-secondary ml-2" onclick="cancelarEdicion()" style="display: none;" id="cancelarEdicionBtn">Cancelar Edición</button>
+      </div>
+    </div>
+
+    <!-- Lista de Productos -->
+    <h2 class="mb-3">Lista de Productos</h2>
+    <ul id="productList" class="list-group"></ul>
+  </div>
+
+  <script>
+    let productoEditando = null;
+
+    async function guardarProducto() {
+      const precio = document.getElementById("precio").value;
+      const cantidad = document.getElementById("cantidad").value;
+      const descripcion = document.getElementById("descripcion").value;
+
+      if (!precio || !cantidad || descripcion === "") {
+        alert("Por favor, completa todos los campos.");
+        return;
+      }
+
+      try {
+        if (productoEditando) {
+          // Editar producto existente
+          const response = await fetch(`/editarProducto/${productoEditando}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ precio, cantidad, descripcion })
+          });
+          if (response.ok) {
+            alert("Producto editado con éxito");
+            productoEditando = null;
+            document.getElementById("formTitle").innerText = "Agregar Producto";
+            document.getElementById("cancelarEdicionBtn").style.display = "none";
+          }
+        } else {
+          // Agregar nuevo producto
+          const response = await fetch('/agregarProducto', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ precio, cantidad, descripcion })
+          });
+          if (response.ok) {
+            alert("Producto agregado con éxito");
+          }
+        }
+        limpiarFormulario();
+        mostrarProductos();
+      } catch (error) {
+        console.error("Error al guardar el producto:", error);
+      }
+    }
+
+    async function mostrarProductos() {
+      const productList = document.getElementById("productList");
+      productList.innerHTML = "";
+
+      try {
+        const response = await fetch('/obtenerProductos');
+        const productos = await response.json();
+        productos.forEach(producto => {
+          const li = document.createElement("li");
+          li.className = "list-group-item d-flex justify-content-between align-items-center";
+          li.textContent = `Descripción: ${producto.descripcion}, Precio: ${producto.precio}, Cantidad: ${producto.cantidad}`;
+          
+          // Botón de editar
+          const editButton = document.createElement("button");
+          editButton.className = "btn btn-primary btn-sm mr-2";
+          editButton.textContent = "Editar";
+          editButton.onclick = () => cargarProductoEnFormulario(producto);
+          li.appendChild(editButton);
+
+          // Botón de eliminar
+          const deleteButton = document.createElement("button");
+          deleteButton.className = "btn btn-danger btn-sm";
+          deleteButton.textContent = "Eliminar";
+          deleteButton.onclick = () => eliminarProducto(producto.id);
+          li.appendChild(deleteButton);
+
+          productList.appendChild(li);
+        });
+      } catch (error) {
+        console.error("Error al obtener productos:", error);
+      }
+    }
+
+    function cargarProductoEnFormulario(producto) {
+      document.getElementById("precio").value = producto.precio;
+      document.getElementById("cantidad").value = producto.cantidad;
+      document.getElementById("descripcion").value = producto.descripcion;
+      productoEditando = producto.id;
+      document.getElementById("formTitle").innerText = "Editar Producto";
+      document.getElementById("cancelarEdicionBtn").style.display = "inline";
+    }
+
+    async function eliminarProducto(id) {
+      try {
+        const response = await fetch(`/eliminarProducto/${id}`, {
+          method: 'DELETE'
+        });
+        if (response.ok) {
+          mostrarProductos();
+        }
+      } catch (error) {
+        console.error("Error al eliminar producto:", error);
+      }
+    }
+
+    function cancelarEdicion() {
+      limpiarFormulario();
+      productoEditando = null;
+      document.getElementById("formTitle").innerText = "Agregar Producto";
+      document.getElementById("cancelarEdicionBtn").style.display = "none";
+    }
+
+    function limpiarFormulario() {
+      document.getElementById("precio").value = "";
+      document.getElementById("cantidad").value = "";
+      document.getElementById("descripcion").value = "";
+    }
+
+    async function cerrarSesion() {
+      const response = await fetch('/cerrarSesion', { method: 'POST' });
+      if (response.ok) {
+        window.location.href = "/login.html";
+      }
+    }
+
+    window.onload = mostrarProductos;
+  </script>
+  <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</body>
+</html>

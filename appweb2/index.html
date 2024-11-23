@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gestión de Productos</title>
+  <!-- Bootstrap CSS -->
+  <link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-dark">
+  <div class="container my-5">
+    <h1 class="text-center mb-5">Gestión de Productos</h1>
+
+    <!-- Formulario de Inicio de Sesión -->
+    <div class="card mb-4">
+      <div class="card-body">
+        <h2 class="card-title">Iniciar Sesión</h2>
+        <div class="form-group">
+          <input type="email" id="email" class="form-control" placeholder="Correo electrónico">
+        </div>
+        <div class="form-group">
+          <input type="password" id="password" class="form-control" placeholder="Contraseña">
+        </div>
+        <button class="btn btn-primary" onclick="iniciarSesion()">Iniciar Sesión</button>
+      </div>
+    </div>
+
+    <!-- Formulario para Agregar Producto -->
+    <div class="card mb-4" id="agregarProductoForm" style="display: none;">
+      <div class="card-body">
+        <h2 class="card-title">Agregar Producto</h2>
+        <div class="form-group">
+          <input type="number" id="precio" class="form-control" placeholder="Precio">
+        </div>
+        <div class="form-group">
+          <input type="number" id="cantidad" class="form-control" placeholder="Cantidad">
+        </div>
+        <div class="form-group">
+          <input type="text" id="descripcion" class="form-control" placeholder="Descripción">
+        </div>
+        <button class="btn btn-success" onclick="agregarProducto()">Agregar Producto</button>
+      </div>
+    </div>
+
+    <!-- Lista de Productos -->
+    <h2 class="mb-3">Lista de Productos</h2>
+    <ul id="productList" class="list-group"></ul>
+  </div>
+
+  <!-- Script para interactuar con el servidor -->
+  <script>
+    // Función para iniciar sesión
+    async function iniciarSesion() {
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+
+      try {
+        const response = await fetch('/iniciarSesion', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ email, password })
+        });
+        const data = await response.json();
+        if (response.ok) {
+          alert("Sesión iniciada correctamente");
+          document.getElementById("agregarProductoForm").style.display = "block"; // Mostrar formulario de agregar producto
+          mostrarProductos();
+        } else {
+          alert("Error en inicio de sesión: " + data.message);
+        }
+      } catch (error) {
+        console.error("Error en inicio de sesión:", error);
+        alert("Error en inicio de sesión");
+      }
+    }
+
+    // Función para agregar producto
+    async function agregarProducto() {
+      const precio = document.getElementById("precio").value;
+      const cantidad = document.getElementById("cantidad").value;
+      const descripcion = document.getElementById("descripcion").value;
+
+      if (!precio || !cantidad || descripcion === "") {
+        alert("Por favor, completa todos los campos.");
+        return;
+      }
+
+      try {
+        const response = await fetch('/agregarProducto', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ precio, cantidad, descripcion })
+        });
+        const data = await response.json();
+        if (response.ok) {
+          alert("Producto agregado con ID: " + data.id);
+          mostrarProductos();
+        } else {
+          alert("Error al agregar producto: " + data.message);
+        }
+      } catch (error) {
+        console.error("Error al agregar producto:", error);
+        alert("Error al agregar producto");
+      }
+    }
+
+    // Función para mostrar productos
+    async function mostrarProductos() {
+      const productList = document.getElementById("productList");
+      productList.innerHTML = ""; // Limpiar lista antes de mostrar los productos
+
+      try {
+        const response = await fetch('/obtenerProductos');
+        const productos = await response.json();
+        if (response.ok) {
+          productos.forEach((producto) => {
+            const li = document.createElement("li");
+            li.className = "list-group-item d-flex justify-content-between align-items-center";
+            li.textContent = `Descripción: ${producto.descripcion}, Precio: ${producto.precio}, Cantidad: ${producto.cantidad}`;
+            
+            // Botón para eliminar producto
+            const deleteButton = document.createElement("button");
+            deleteButton.className = "btn btn-danger btn-sm";
+            deleteButton.textContent = "Eliminar";
+            deleteButton.onclick = () => eliminarProducto(producto.id);
+            li.appendChild(deleteButton);
+
+            productList.appendChild(li);
+          });
+        } else {
+          alert("Error al obtener productos: " + productos.message);
+        }
+      } catch (error) {
+        console.error("Error al obtener productos:", error);
+      }
+    }
+
+    // Función para eliminar producto
+    async function eliminarProducto(id) {
+      try {
+        const response = await fetch(`/eliminarProducto/${id}`, {
+          method: 'DELETE'
+        });
+        if (response.ok) {
+          alert("Producto eliminado con ID: " + id);
+          mostrarProductos();
+        } else {
+          const data = await response.json();
+          alert("Error al eliminar producto: " + data.message);
+        }
+      } catch (error) {
+        console.error("Error al eliminar producto:", error);
+        alert("Error al eliminar producto");
+      }
+    }
+
+    // Al cargar la página, verifica si el usuario está autenticado
+    window.onload = async function() {
+      const response = await fetch('/verificarSesion');
+      if (response.ok) {
+        document.getElementById("agregarProductoForm").style.display = "block"; // Mostrar formulario de agregar producto si el usuario está autenticado
+        mostrarProductos();
+      }
+    };
+  </script>
+  
+  <!-- Bootstrap JS (opcional, si usas alguna funcionalidad de JS de Bootstrap) -->
+  <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</body>
+</html>
